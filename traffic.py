@@ -15,7 +15,7 @@ SW = (-1,-1)
 
 # grid size
 GRID_MIN = 0
-GRID_MAX = 13
+GRID_MAX = 17
 
 GRID_RANGE = range(GRID_MIN, GRID_MAX)
 
@@ -183,7 +183,7 @@ TRANSITIONS[(GRID_MID-1,GRID_MID-2)][SW] = S
 all_cars = []
 
 # tracks all the cars by current coordinate
-all_cars_set = set()
+all_cars_by_coord = {}
 
 # a car is basically a coordinate and the current direction it is headed
 class Car:
@@ -191,6 +191,8 @@ class Car:
         assert is_lane(coord) or is_outside_grid(coord)
         self.coord = coord
         self.direction = direction
+        self.color = ['magenta', 'cyan', 'white'][random.randint(0,2)]
+        self.display_val = ' {} '.format(['#', '*', 'O', '%', '$'][random.randint(0,4)])
 
     def next_coord(self):
         return (self.coord[0] + self.direction[0], self.coord[1] + self.direction[1])
@@ -206,18 +208,18 @@ class Car:
     def move(self):
         global all_cars
         if self.can_move():
-            # clean this reference to all_cars_set up
-            all_cars_set.remove(self.coord)
+            # clean this reference to all_cars_by_coord up
+            all_cars_by_coord.pop(self.coord)
             self.coord = self.next_coord()
             self.direction = TRANSITIONS.get(self.coord, {}).get(self.direction, (0,0))
-            all_cars_set.add(self.coord)
+            all_cars_by_coord[self.coord] = self
 
     def is_done(self):
         return is_outside_grid(self.coord)
 
 # helpers
 def is_occupied(coord):
-    return coord in all_cars_set
+    return coord in all_cars_by_coord
 
 def is_light(coord):
     return coord in LIGHTS
@@ -265,7 +267,8 @@ def get_grid_background(coord):
 def get_grid_char(coord):
     if is_outside_grid(coord):
         return colored('   ', 'white', 'on_white')
-    return colored(' # ' if coord in all_cars_set else '   ', 'magenta', get_grid_background(coord))
+    car = all_cars_by_coord.get(coord, None)
+    return colored(car.display_val if car else '   ', car.color if car else 'white', get_grid_background(coord))
 
 def print_row(row_index):
     print ''.join([get_grid_char((col_index, row_index)) for col_index in range(GRID_MIN-1,GRID_MAX+1)])
@@ -280,13 +283,13 @@ def print_grid():
 def add_new_cars():
     # for now add one car per call
     global all_cars
-    global all_cars_set
+    global all_cars_by_coord
     entering_car = Car(*INITIALIZERS[random.randint(0, len(INITIALIZERS)-1)])
     if is_occupied(entering_car.coord):
         print 'CONGESTION at {}'.format(entering_car.coord)
     else:
         all_cars.append(entering_car)
-        all_cars_set.add(entering_car.coord)
+        all_cars_by_coord[entering_car.coord] = entering_car
 
 def advance_lights():
     global light_state
@@ -298,15 +301,14 @@ def advance_lights():
 
 def remove_finished_cars():
     global all_cars
-    global all_cars_set
+    global all_cars_by_coord
     finished_cars = [car for car in all_cars if car.is_done()]
     all_cars[:] = [car for car in all_cars if not car.is_done()]
     for car in finished_cars:
-        all_cars_set.remove(car.coord)
+        all_cars_by_coord.pop(car.coord)
 
 def advance():
     global all_cars
-    global all_cars_set
     advance_lights()
     add_new_cars()
     for car in all_cars:
@@ -316,8 +318,8 @@ def advance():
 
 def validate_cars():
     global all_cars
-    global all_cars_set
-    assert len(all_cars) == len(all_cars_set)
+    global all_cars_by_coord
+    assert len(all_cars) == len(all_cars_by_coord.keys())
     for car in all_cars:
         assert is_lane(car.coord) or is_outside_grid(car.coord)
         assert not car.is_done()
