@@ -96,21 +96,17 @@ LIGHT_STATES = [
         ]
 # how long to remain in each state
 LIGHT_STATE_DURATIONS = {
-        'NS_GREEN': GRID_MID+2,
+        'NS_GREEN': 8,
         'NS_YELLOW': 1,
         'NS_ALL_RED': 3,
         'NS_LEFT_GREEN': 4,
         'NS_LEFT_YELLOW': 1,
-        'EW_GREEN': GRID_MID+2,
+        'EW_GREEN': 8,
         'EW_YELLOW': 1,
         'EW_ALL_RED': 3,
         'EW_LEFT_GREEN': 4,
         'EW_LEFT_YELLOW': 1,
         }
-
-# initial state
-light_state = 'NS_GREEN'
-light_state_counter = 0
 
 # light color constants
 RED = 'red'
