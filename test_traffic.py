@@ -29,13 +29,13 @@ def test_is_outside_grid():
     assert not is_outside_grid((GRID_MAX-1,GRID_MAX-1))
 
 def test_is_done():
-    car = Car((GRID_MID+1,GRID_MAX), E)
+    car = Car((GRID_MID+1,GRID_MAX), N)
     assert car.is_done()
 
 def test_advance_removes_finished_cars():
     all_cars[:] = []
     all_cars_by_coord.clear()
-    car = Car((GRID_MID+1,GRID_MAX-1), E)
+    car = Car((GRID_MID+1,GRID_MAX-1), N)
     all_cars.append(car)
     all_cars_by_coord[car.coord] = car
     advance()
