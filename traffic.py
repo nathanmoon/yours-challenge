@@ -240,14 +240,22 @@ class Traffic:
         self._remove_finished_cars()
         self._validate_cars()
 
+    def add_car_by_hand(self, car):
+        assert not self._is_occupied(car.coord)
+        assert self._is_lane(car.coord)
+        self._add_car(car)
+
     def _add_new_cars(self):
         # for now add one car per call
         entering_car = Car(*INITIALIZERS[random.randint(0, len(INITIALIZERS)-1)])
         if self._is_occupied(entering_car.coord):
             print 'CONGESTION at {}'.format(entering_car.coord)
         else:
-            self.all_cars.append(entering_car)
-            self.all_cars_by_coord[entering_car.coord] = entering_car
+            self._add_car(entering_car)
+
+    def _add_car(self, car):
+        self.all_cars.append(car)
+        self.all_cars_by_coord[car.coord] = car
 
     def _remove_finished_cars(self):
         finished_cars = [car for car in self.all_cars if self._is_done(car)]
