@@ -1,7 +1,7 @@
 import pytest
 
 from traffic import (all_cars, all_cars_by_coord, Car, advance, is_occupied, is_light,
-        is_lane, is_outside_grid, GRID_MAX, GRID_MID, N)
+        is_lane, is_outside_grid, GRID_MAX, GRID_MID, N, E)
 
 def test_car_must_be_in_lane():
     with pytest.raises(Exception):
@@ -29,13 +29,13 @@ def test_is_outside_grid():
     assert not is_outside_grid((GRID_MAX-1,GRID_MAX-1))
 
 def test_is_done():
-    car = Car((GRID_MID+1,GRID_MAX), (0,1))
+    car = Car((GRID_MID+1,GRID_MAX), E)
     assert car.is_done()
 
 def test_advance_removes_finished_cars():
     all_cars[:] = []
     all_cars_by_coord.clear()
-    car = Car((GRID_MID+1,GRID_MAX-1), (0,1))
+    car = Car((GRID_MID+1,GRID_MAX-1), E)
     all_cars.append(car)
     all_cars_by_coord[car.coord] = car
     advance()
