@@ -179,16 +179,132 @@ TRANSITIONS[(GRID_MID+1,GRID_MID)][W] = SW
 TRANSITIONS[(GRID_MID,GRID_MID-1)][SW] = SW
 TRANSITIONS[(GRID_MID-1,GRID_MID-2)][SW] = S
 
-# tracks all the cars on the grid
-all_cars = []
+# lights advance on a set pattern
+class Lights:
+    def __init__(self, light_state='NS_GREEN'):
+        self.light_state = light_state
+        self.light_state_counter = 0
 
-# tracks all the cars by current coordinate
-all_cars_by_coord = {}
+    def is_light(self, coord):
+        return coord in LIGHTS
+
+    def get_light_value(self, coord):
+        if self.light_state == 'NS_GREEN':
+            if coord in NORTH_LIGHTS or coord in SOUTH_LIGHTS:
+                return GREEN
+        if self.light_state == 'NS_YELLOW':
+            if coord in NORTH_LIGHTS or coord in SOUTH_LIGHTS:
+                return YELLOW
+        if self.light_state == 'NS_LEFT_GREEN':
+            if coord in NORTH_LEFT_LIGHTS or coord in SOUTH_LEFT_LIGHTS:
+                return GREEN
+        if self.light_state == 'NS_LEFT_YELLOW':
+            if coord in NORTH_LEFT_LIGHTS or coord in SOUTH_LEFT_LIGHTS:
+                return YELLOW
+        if self.light_state == 'EW_GREEN':
+            if coord in EAST_LIGHTS or coord in WEST_LIGHTS:
+                return GREEN
+        if self.light_state == 'EW_YELLOW':
+            if coord in EAST_LIGHTS or coord in WEST_LIGHTS:
+                return YELLOW
+        if self.light_state == 'EW_LEFT_GREEN':
+            if coord in EAST_LEFT_LIGHTS or coord in WEST_LEFT_LIGHTS:
+                return GREEN
+        if self.light_state == 'EW_LEFT_YELLOW':
+            if coord in EAST_LEFT_LIGHTS or coord in WEST_LEFT_LIGHTS:
+                return YELLOW
+        return RED if self.is_light(coord) else None
+
+    def advance_lights(self):
+        self.light_state_counter += 1
+        if self.light_state_counter >= LIGHT_STATE_DURATIONS[self.light_state]:
+            self.light_state_counter = 0
+            self.light_state = LIGHT_STATES[(LIGHT_STATES.index(self.light_state)+1)%len(LIGHT_STATES)]
+
+# the main model of the traffic intersection
+class Traffic:
+    def __init__(self):
+        self.all_cars = []
+        self.all_cars_by_coord = {}
+        self.lights = Lights()
+
+    def advance(self):
+        self.lights.advance_lights()
+        self._add_new_cars()
+        for car in self.all_cars:
+            if self._car_can_move(car):
+                self.all_cars_by_coord.pop(car.coord)
+                car.move()
+                self.all_cars_by_coord[car.coord] = car
+        self._remove_finished_cars()
+        self._validate_cars()
+
+    # helpers
+    def _is_occupied(self, coord):
+        return coord in self.all_cars_by_coord
+
+    def _is_lane(self, coord):
+        return coord in LANES
+
+    def _is_outside_grid(self, coord):
+        return coord[0] < GRID_MIN or coord[0] >= GRID_MAX or coord[1] < GRID_MIN or coord[1] >= GRID_MAX
+
+    def _car_can_move(self, car):
+        next_coord = car.next_coord()
+        if self.lights.get_light_value(next_coord) == RED:
+            return False
+        if self._is_occupied(next_coord):
+            return False
+        return True
+
+    # code for advancing and validating the cars
+    def _add_new_cars(self):
+        # for now add one car per call
+        entering_car = Car(*INITIALIZERS[random.randint(0, len(INITIALIZERS)-1)])
+        if self._is_occupied(entering_car.coord):
+            print 'CONGESTION at {}'.format(entering_car.coord)
+        else:
+            self.all_cars.append(entering_car)
+            self.all_cars_by_coord[entering_car.coord] = entering_car
+
+    def _remove_finished_cars(self):
+        finished_cars = [car for car in self.all_cars if self._is_done(car)]
+        self.all_cars[:] = [car for car in self.all_cars if not self._is_done(car)]
+        for car in finished_cars:
+            self.all_cars_by_coord.pop(car.coord)
+
+    def _validate_cars(self):
+        assert len(self.all_cars) == len(self.all_cars_by_coord.keys())
+        for car in self.all_cars:
+            assert self._is_lane(car.coord) or self._is_outside_grid(car.coord)
+            assert not self._is_done(car)
+
+    def _is_done(self, car):
+        return self._is_outside_grid(car.coord)
+
+    # grid drawing code:
+    def _get_grid_background(self, coord):
+        v = self.lights.get_light_value(coord)
+        return 'on_red' if v == RED else 'on_yellow' if v == YELLOW else 'on_green' if self.lights.is_light(coord) else 'on_blue' if self._is_lane(coord) else None
+
+    def _get_grid_char(self, coord):
+        if self._is_outside_grid(coord):
+            return colored('   ', 'white', 'on_white')
+        car = self.all_cars_by_coord.get(coord, None)
+        return colored(car.display_val if car else '   ', car.color if car else 'white', self._get_grid_background(coord))
+
+    def _print_row(self, row_index):
+        print ''.join([self._get_grid_char((col_index, row_index)) for col_index in range(GRID_MIN-1,GRID_MAX+1)])
+
+    def print_grid(self):
+        print('\x1b[2J')
+        for row in range(GRID_MAX, GRID_MIN-2, -1):
+            self._print_row(row)
+
 
 # a car is basically a coordinate and the current direction it is headed
 class Car:
     def __init__(self, coord, direction):
-        assert is_lane(coord) or is_outside_grid(coord)
         self.coord = coord
         self.direction = direction
         self.color = ['magenta', 'cyan', 'white'][random.randint(0,2)]
@@ -197,140 +313,19 @@ class Car:
     def next_coord(self):
         return (self.coord[0] + self.direction[0], self.coord[1] + self.direction[1])
 
-    def can_move(self):
-        next_coord = self.next_coord()
-        if get_light_value(next_coord) == RED:
-            return False
-        if is_occupied(next_coord):
-            return False
-        return True
-
     def move(self):
-        global all_cars
-        if self.can_move():
-            # clean this reference to all_cars_by_coord up
-            all_cars_by_coord.pop(self.coord)
-            self.coord = self.next_coord()
-            self.direction = TRANSITIONS.get(self.coord, {}).get(self.direction, (0,0))
-            all_cars_by_coord[self.coord] = self
+        self.coord = self.next_coord()
+        self.direction = TRANSITIONS.get(self.coord, {}).get(self.direction, (0,0))
 
-    def is_done(self):
-        return is_outside_grid(self.coord)
-
-# helpers
-def is_occupied(coord):
-    return coord in all_cars_by_coord
-
-def is_light(coord):
-    return coord in LIGHTS
-
-def is_lane(coord):
-    return coord in LANES
-
-def is_outside_grid(coord):
-    return coord[0] < GRID_MIN or coord[0] >= GRID_MAX or coord[1] < GRID_MIN or coord[1] >= GRID_MAX
-
-def get_light_value(coord):
-    global light_state
-    if light_state == 'NS_GREEN':
-        if coord in NORTH_LIGHTS or coord in SOUTH_LIGHTS:
-            return GREEN
-    if light_state == 'NS_YELLOW':
-        if coord in NORTH_LIGHTS or coord in SOUTH_LIGHTS:
-            return YELLOW
-    if light_state == 'NS_LEFT_GREEN':
-        if coord in NORTH_LEFT_LIGHTS or coord in SOUTH_LEFT_LIGHTS:
-            return GREEN
-    if light_state == 'NS_LEFT_YELLOW':
-        if coord in NORTH_LEFT_LIGHTS or coord in SOUTH_LEFT_LIGHTS:
-            return YELLOW
-    if light_state == 'EW_GREEN':
-        if coord in EAST_LIGHTS or coord in WEST_LIGHTS:
-            return GREEN
-    if light_state == 'EW_YELLOW':
-        if coord in EAST_LIGHTS or coord in WEST_LIGHTS:
-            return YELLOW
-    if light_state == 'EW_LEFT_GREEN':
-        if coord in EAST_LEFT_LIGHTS or coord in WEST_LEFT_LIGHTS:
-            return GREEN
-    if light_state == 'EW_LEFT_YELLOW':
-        if coord in EAST_LEFT_LIGHTS or coord in WEST_LEFT_LIGHTS:
-            return YELLOW
-    return RED if is_light(coord) else None
-
-
-# grid drawing code:
-def get_grid_background(coord):
-    v = get_light_value(coord)
-    return 'on_red' if v == RED else 'on_yellow' if v == YELLOW else 'on_green' if is_light(coord) else 'on_blue' if is_lane(coord) else None
-
-def get_grid_char(coord):
-    if is_outside_grid(coord):
-        return colored('   ', 'white', 'on_white')
-    car = all_cars_by_coord.get(coord, None)
-    return colored(car.display_val if car else '   ', car.color if car else 'white', get_grid_background(coord))
-
-def print_row(row_index):
-    print ''.join([get_grid_char((col_index, row_index)) for col_index in range(GRID_MIN-1,GRID_MAX+1)])
-
-def print_grid():
-    print('\x1b[2J')
-    for row in range(GRID_MAX, GRID_MIN-2, -1):
-        print_row(row)
-
-
-# code for advancing and validating the cars
-def add_new_cars():
-    # for now add one car per call
-    global all_cars
-    global all_cars_by_coord
-    entering_car = Car(*INITIALIZERS[random.randint(0, len(INITIALIZERS)-1)])
-    if is_occupied(entering_car.coord):
-        print 'CONGESTION at {}'.format(entering_car.coord)
-    else:
-        all_cars.append(entering_car)
-        all_cars_by_coord[entering_car.coord] = entering_car
-
-def advance_lights():
-    global light_state
-    global light_state_counter
-    light_state_counter += 1
-    if light_state_counter >= LIGHT_STATE_DURATIONS[light_state]:
-        light_state_counter = 0
-        light_state = LIGHT_STATES[(LIGHT_STATES.index(light_state)+1)%len(LIGHT_STATES)]
-
-def remove_finished_cars():
-    global all_cars
-    global all_cars_by_coord
-    finished_cars = [car for car in all_cars if car.is_done()]
-    all_cars[:] = [car for car in all_cars if not car.is_done()]
-    for car in finished_cars:
-        all_cars_by_coord.pop(car.coord)
-
-def advance():
-    global all_cars
-    advance_lights()
-    add_new_cars()
-    for car in all_cars:
-        car.move()
-    remove_finished_cars()
-    validate_cars()
-
-def validate_cars():
-    global all_cars
-    global all_cars_by_coord
-    assert len(all_cars) == len(all_cars_by_coord.keys())
-    for car in all_cars:
-        assert is_lane(car.coord) or is_outside_grid(car.coord)
-        assert not car.is_done()
 
 def main():
     print 'Traffic Model'
-    print_grid()
+    traffic = Traffic()
+    traffic.print_grid()
     key = ''
     while key != 'q':
-        advance()
-        print_grid()
+        traffic.advance()
+        traffic.print_grid()
         key = raw_input('Anything but q to advance:')
     print 'bubye'
 
