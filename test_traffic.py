@@ -1,7 +1,7 @@
 import pytest
 
 from traffic import (all_cars, all_cars_by_coord, Car, advance, is_occupied, is_light,
-        is_lane, is_outside_grid, GRID_MAX, GRID_MID, N, E)
+        is_lane, is_outside_grid, GRID_MAX, GRID_MID, N)
 
 def test_car_must_be_in_lane():
     with pytest.raises(Exception):

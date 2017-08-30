@@ -17,11 +17,11 @@ SW = (-1,-1)
 GRID_MIN = 0
 GRID_MAX = 17
 
-GRID_RANGE = range(GRID_MIN, GRID_MAX)
-
+# middle of grid. used for relative coordinates of lanes, lights, etc.
 GRID_MID = GRID_MAX // 2
 
 # coordinates of the various lanes
+GRID_RANGE = range(GRID_MIN, GRID_MAX)
 NORTHBOUND1 = [(GRID_MID+1,y) for y in GRID_RANGE]
 NORTHBOUND2 = [(GRID_MID+2,y) for y in GRID_RANGE]
 SOUTHBOUND1 = [(GRID_MID-1,y) for y in GRID_RANGE]
@@ -66,6 +66,7 @@ WEST1_LIGHT = (GRID_MID+3,GRID_MID+1)
 WEST2_LIGHT = (GRID_MID+3,GRID_MID+2)
 WESTRIGHT_LIGHT = (GRID_MID+3,GRID_MID+3)
 
+# groups of lights that turn together
 NORTH_LIGHTS = [NORTH1_LIGHT, NORTH2_LIGHT, NORTHRIGHT_LIGHT]
 NORTH_LEFT_LIGHTS = [NORTH_LEFT_LIGHT]
 SOUTH_LIGHTS = [SOUTH1_LIGHT, SOUTH2_LIGHT, SOUTHRIGHT_LIGHT]
@@ -79,11 +80,6 @@ LIGHTS = NORTH_LIGHTS + NORTH_LEFT_LIGHTS + \
         SOUTH_LIGHTS + SOUTH_LEFT_LIGHTS + \
         EAST_LIGHTS + EAST_LEFT_LIGHTS + \
         WEST_LIGHTS + WEST_LEFT_LIGHTS
-
-NS_LIGHTS = NORTH_LIGHTS + SOUTH_LIGHTS
-NS_LEFT_LIGHTS = NORTH_LEFT_LIGHTS + SOUTH_LEFT_LIGHTS
-EW_LIGHTS = EAST_LIGHTS + WEST_LIGHTS
-EW_LEFT_LIGHTS = EAST_LEFT_LIGHTS + WEST_LEFT_LIGHTS
 
 # these are in order:
 LIGHT_STATES = [
@@ -111,9 +107,12 @@ LIGHT_STATE_DURATIONS = {
         'EW_LEFT_GREEN': 4,
         'EW_LEFT_YELLOW': 1,
         }
+
+# initial state
 light_state = 'NS_GREEN'
 light_state_counter = 0
 
+# light color constants
 RED = 'red'
 YELLOW = 'yellow'
 GREEN = 'green'
@@ -157,6 +156,8 @@ for coord in WESTRIGHT:
     TRANSITIONS[coord][W] = W
 TRANSITIONS[(GRID_MID+2,GRID_MID+3)][W] = N
 # left turn lane transitions
+# left turns go on the diagonal briefly to round the corner
+# otherwise the left turns from opposite directions would collide
 for coord in NORTHLEFT:
     TRANSITIONS[coord][N] = N
 TRANSITIONS[(GRID_MID,GRID_MID-1)][N] = NW
@@ -177,7 +178,6 @@ for coord in WESTLEFT:
 TRANSITIONS[(GRID_MID+1,GRID_MID)][W] = SW
 TRANSITIONS[(GRID_MID,GRID_MID-1)][SW] = SW
 TRANSITIONS[(GRID_MID-1,GRID_MID-2)][SW] = S
-
 
 # tracks all the cars on the grid
 all_cars = []
