@@ -228,6 +228,7 @@ class Traffic:
         self.all_cars_by_coord = {}
         self.lights = Lights()
 
+    # code for advancing and validating the cars
     def advance(self):
         self.lights.advance_lights()
         self._add_new_cars()
@@ -239,25 +240,6 @@ class Traffic:
         self._remove_finished_cars()
         self._validate_cars()
 
-    # helpers
-    def _is_occupied(self, coord):
-        return coord in self.all_cars_by_coord
-
-    def _is_lane(self, coord):
-        return coord in LANES
-
-    def _is_outside_grid(self, coord):
-        return coord[0] < GRID_MIN or coord[0] >= GRID_MAX or coord[1] < GRID_MIN or coord[1] >= GRID_MAX
-
-    def _car_can_move(self, car):
-        next_coord = car.next_coord()
-        if self.lights.get_light_value(next_coord) == RED:
-            return False
-        if self._is_occupied(next_coord):
-            return False
-        return True
-
-    # code for advancing and validating the cars
     def _add_new_cars(self):
         # for now add one car per call
         entering_car = Car(*INITIALIZERS[random.randint(0, len(INITIALIZERS)-1)])
@@ -283,6 +265,11 @@ class Traffic:
         return self._is_outside_grid(car.coord)
 
     # grid drawing code:
+    def print_grid(self):
+        print('\x1b[2J')
+        for row in range(GRID_MAX, GRID_MIN-2, -1):
+            self._print_row(row)
+
     def _get_grid_background(self, coord):
         v = self.lights.get_light_value(coord)
         return 'on_red' if v == RED else 'on_yellow' if v == YELLOW else 'on_green' if self.lights.is_light(coord) else 'on_blue' if self._is_lane(coord) else None
@@ -296,10 +283,23 @@ class Traffic:
     def _print_row(self, row_index):
         print ''.join([self._get_grid_char((col_index, row_index)) for col_index in range(GRID_MIN-1,GRID_MAX+1)])
 
-    def print_grid(self):
-        print('\x1b[2J')
-        for row in range(GRID_MAX, GRID_MIN-2, -1):
-            self._print_row(row)
+    # helpers
+    def _is_occupied(self, coord):
+        return coord in self.all_cars_by_coord
+
+    def _is_lane(self, coord):
+        return coord in LANES
+
+    def _is_outside_grid(self, coord):
+        return coord[0] < GRID_MIN or coord[0] >= GRID_MAX or coord[1] < GRID_MIN or coord[1] >= GRID_MAX
+
+    def _car_can_move(self, car):
+        next_coord = car.next_coord()
+        if self.lights.get_light_value(next_coord) == RED:
+            return False
+        if self._is_occupied(next_coord):
+            return False
+        return True
 
 
 # a car is basically a coordinate and the current direction it is headed
